@@ -1,24 +1,33 @@
 use std::error::Error;
 use std::{env, fs};
+use std::env::Args;
 
 pub struct Config {
     pub pattern: String,
     pub filepath: String,
-    pub ignore_case: bool
+    pub ignore_case: bool,
 }
 
 const IGNORE_CASE_FLAG: &'static str = "IGNORE_CASE";
 
 impl Config {
-    pub fn build(args: &[String]) -> Result<Config, &'static str> {
-        if args.len() < 3 {
-            return Err("Not enough arguments!");
-        }
+    pub fn build(mut args: impl Iterator<Item=String>) -> Result<Config, &'static str> {
+        args.next();
+
+        let pattern = match args.next() {
+            Some(pattern) => pattern,
+            None => return Err("Didn't get a pattern")
+        };
+
+        let filepath = match args.next() {
+            Some(filepath) => filepath,
+            None => return Err("Didn't get a filepath")
+        };
 
         Ok(Config {
-            pattern: args[1].clone(),
-            filepath: args[2].clone(),
-            ignore_case: env::var(IGNORE_CASE_FLAG).is_ok()
+            pattern,
+            filepath,
+            ignore_case: env::var(IGNORE_CASE_FLAG).is_ok(),
         })
     }
 }
@@ -40,28 +49,15 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 }
 
 fn search<'a>(query: &str, content: &'a str) -> Vec<&'a str> {
-    let mut matches = Vec::new();
-
-    for line in content.lines() {
-        if line.contains(query) {
-            matches.push(line);
-        }
-    }
-
-    matches
+    content.lines()
+           .filter(|line| line.contains(query))
+           .collect()
 }
 
 fn search_case_insensitive<'a>(query: &str, content: &'a str) -> Vec<&'a str> {
-    let mut matches = Vec::new();
-    let query = query.to_lowercase();
-
-    for line in content.lines() {
-        if line.to_lowercase().contains(&query) {
-            matches.push(line);
-        }
-    }
-
-    matches
+    content.lines()
+           .filter(|line| line.to_lowercase().contains(&query.to_lowercase()))
+           .collect()
 }
 
 #[cfg(test)]
